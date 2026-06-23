@@ -14,6 +14,21 @@ Prompt Sidebar 是一款轻量级、高效率的浏览器扩展（Chrome Extensi
 
 ---
 
+## 📦 下载与安装 (供普通用户)
+
+您可以直接从 GitHub Releases 下载打包好的压缩包并加载到浏览器中，无需配置开发环境：
+
+1. 访问本项目的 **[Releases 页面](https://github.com/escatial/Prompt-Plugin/releases)**。
+2. 下载最新版本的 `Prompt-Sidebar-vX.X.X.zip` 压缩包并解压到一个您常用的文件夹中。
+3. 打开 Chrome 或 Edge 浏览器的扩展程序管理页面：
+   - Chrome: 在地址栏输入 `chrome://extensions/`
+   - Edge: 在地址栏输入 `edge://extensions/`
+4. 开启页面右上角或左下角的 **开发者模式**。
+5. 点击 **加载已解压的扩展程序** 按钮。
+6. 选择您刚刚解压出来的文件夹，即可完成安装并开始使用！
+
+---
+
 ## 🛠 开发与运行环境要求
 
 ### 开发环境依赖
