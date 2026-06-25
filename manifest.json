@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Prompt Sidebar v0.1.7",
-  "version": "0.1.7",
+  "name": "Prompt Sidebar v0.1.8",
+  "version": "0.1.8",
   "description": "A prompt sidebar for Chrome",
   "permissions": ["sidePanel", "storage", "activeTab", "scripting"],
   "background": {

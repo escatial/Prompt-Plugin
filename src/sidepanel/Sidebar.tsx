@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { usePromptStore, useSettingsStore } from '../store';
+import { usePromptStore, useSettingsStore, ChromeStorage } from '../store';
 import { SearchInput } from '../components/SearchInput';
 import { PromptList } from '../components/PromptList';
 import { PromptFormModal } from '../components/PromptFormModal';
@@ -55,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [promptToDelete, setPromptToDelete] = useState<Prompt | null>(null);
     
-    const { isLoading, error, initialize, getFilteredPrompts, addPrompt, updatePrompt, deletePrompt } = usePromptStore();
+    const { isLoading, error, initialize, getFilteredPrompts, addPrompt, updatePrompt, deletePrompt, setPrompts } = usePromptStore();
     const { settings, initialize: initializeSettings, updateSettings } = useSettingsStore();
     
     const filteredPrompts = getFilteredPrompts();
@@ -74,7 +74,18 @@ const Sidebar: React.FC<SidebarProps> = () => {
         loadSettings();
         initialize();
         initializeSettings();
-    }, [initialize, initializeSettings]);
+
+        // 监听跨设备同步：当 chrome.storage.sync 中的数据变化时（其他设备同步过来），自动刷新本地状态
+        ChromeStorage.onChanged((changes) => {
+            if (changes.prompts) {
+                const newPrompts = changes.prompts;
+                if (newPrompts && Array.isArray(newPrompts)) {
+                    console.log('[Sync] 检测到跨设备数据同步，正在更新本地数据...');
+                    setPrompts(newPrompts);
+                }
+            }
+        });
+    }, [initialize, initializeSettings, setPrompts]);
     
     useEffect(() => {
         setIsFloating(settings.sidebarBehavior === 'floating');

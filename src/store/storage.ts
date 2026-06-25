@@ -22,79 +22,140 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export class ChromeStorage {
-    private static async getStorageArea(): Promise<chrome.storage.StorageArea> {
-        try {
-            // 先读取本地设置看是否启用了同步
-            const result = await chrome.storage.local.get(SETTINGS_KEY);
-            const settings = result[SETTINGS_KEY] as Settings;
-            return settings?.enableSync ? chrome.storage.sync : chrome.storage.local;
-        } catch {
-            return chrome.storage.local;
-        }
-    }
-
+    /**
+     * 获取提示词数据 - 智能合并本地和同步数据
+     * 策略：取两个区域中数据量更大的那个作为主数据源
+     */
     static async getPrompts(): Promise<Prompt[]> {
-        const area = await this.getStorageArea();
-        const result = await area.get(STORAGE_KEY);
-        const data = result[STORAGE_KEY];
-        return Array.isArray(data) ? data : [];
-    }
+        try {
+            // 同时读取两个区域的数据
+            const [localResult, syncResult] = await Promise.all([
+                chrome.storage.local.get([STORAGE_KEY, INITIALIZED_KEY, SETTINGS_KEY]),
+                chrome.storage.sync.get([STORAGE_KEY, INITIALIZED_KEY, SETTINGS_KEY]),
+            ]);
 
-    static async savePrompts(prompts: Prompt[]): Promise<void> {
-        const area = await this.getStorageArea();
-        await area.set({ [STORAGE_KEY]: prompts });
-    }
+            const localPrompts = localResult[STORAGE_KEY];
+            const syncPrompts = syncResult[STORAGE_KEY];
 
-    static async isInitialized(): Promise<boolean> {
-        const area = await this.getStorageArea();
-        const result = await area.get(INITIALIZED_KEY);
-        const data = result[INITIALIZED_KEY];
-        return typeof data === 'boolean' ? data : false;
-    }
+            const localData = Array.isArray(localPrompts) ? localPrompts : [];
+            const syncData = Array.isArray(syncPrompts) ? syncPrompts : [];
 
-    static async setInitialized(value: boolean): Promise<void> {
-        const area = await this.getStorageArea();
-        await area.set({ [INITIALIZED_KEY]: value });
-    }
-
-    static async getSettings(): Promise<Settings> {
-        // 设置总是存在 local 中，因为同步设置本身需要最先被读取
-        const result = await chrome.storage.local.get(SETTINGS_KEY);
-        const data = result[SETTINGS_KEY];
-        return data ? { ...DEFAULT_SETTINGS, ...data } : DEFAULT_SETTINGS;
-    }
-
-    static async saveSettings(settings: Settings): Promise<void> {
-        const oldSettings = await this.getSettings();
-        
-        // 如果同步状态发生改变，需要进行数据迁移
-        if (oldSettings.enableSync !== settings.enableSync) {
-            const oldArea = oldSettings.enableSync ? chrome.storage.sync : chrome.storage.local;
-            const newArea = settings.enableSync ? chrome.storage.sync : chrome.storage.local;
-            
-            // 读取旧数据
-            const promptsResult = await oldArea.get(STORAGE_KEY);
-            const initResult = await oldArea.get(INITIALIZED_KEY);
-            
-            // 写入新区域
-            if (promptsResult[STORAGE_KEY]) {
-                await newArea.set({ [STORAGE_KEY]: promptsResult[STORAGE_KEY] });
+            // 判断哪个区域的数据更新（取数据量更大的，因为数据多的通常是更新过的）
+            if (localData.length > syncData.length) {
+                return localData;
+            } else if (syncData.length > localData.length) {
+                return syncData;
+            } else {
+                // 数据量相同时，优先返回同步区域的数据（如果存在）
+                return syncData.length > 0 ? syncData : localData;
             }
-            if (initResult[INITIALIZED_KEY] !== undefined) {
-                await newArea.set({ [INITIALIZED_KEY]: initResult[INITIALIZED_KEY] });
-            }
-            
-            // 清理旧区域数据（可选）
-            await oldArea.remove([STORAGE_KEY, INITIALIZED_KEY]);
+        } catch {
+            return [];
         }
-        
-        await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
     }
 
+    /**
+     * 保存提示词数据 - 同时写入本地和同步区域
+     */
+    static async savePrompts(prompts: Prompt[]): Promise<void> {
+        try {
+            // 同时写入两个区域，确保数据同步
+            await Promise.all([
+                chrome.storage.local.set({ [STORAGE_KEY]: prompts }),
+                chrome.storage.sync.set({ [STORAGE_KEY]: prompts }).catch(() => {
+                    // 同步区域可能因为配额限制失败，这是正常的
+                    // console.warn('Sync storage save failed (quota?)');
+                }),
+            ]);
+        } catch (error) {
+            // 如果同步失败，至少确保本地保存成功
+            await chrome.storage.local.set({ [STORAGE_KEY]: prompts });
+        }
+    }
+
+    /**
+     * 检查是否已初始化
+     */
+    static async isInitialized(): Promise<boolean> {
+        try {
+            const [localResult, syncResult] = await Promise.all([
+                chrome.storage.local.get(INITIALIZED_KEY),
+                chrome.storage.sync.get(INITIALIZED_KEY),
+            ]);
+            return localResult[INITIALIZED_KEY] === true || syncResult[INITIALIZED_KEY] === true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * 设置初始化标记
+     */
+    static async setInitialized(value: boolean): Promise<void> {
+        try {
+            await Promise.all([
+                chrome.storage.local.set({ [INITIALIZED_KEY]: value }),
+                chrome.storage.sync.set({ [INITIALIZED_KEY]: value }),
+            ]);
+        } catch {
+            await chrome.storage.local.set({ [INITIALIZED_KEY]: value });
+        }
+    }
+
+    /**
+     * 获取设置 - 同时检查两个区域
+     */
+    static async getSettings(): Promise<Settings> {
+        try {
+            const [localResult, syncResult] = await Promise.all([
+                chrome.storage.local.get(SETTINGS_KEY),
+                chrome.storage.sync.get(SETTINGS_KEY),
+            ]);
+
+            // 优先使用同步设置
+            const data = syncResult[SETTINGS_KEY] || localResult[SETTINGS_KEY];
+            return data ? { ...DEFAULT_SETTINGS, ...data } : DEFAULT_SETTINGS;
+        } catch {
+            return DEFAULT_SETTINGS;
+        }
+    }
+
+    /**
+     * 保存设置 - 同时写入两个区域
+     */
+    static async saveSettings(settings: Settings): Promise<void> {
+        try {
+            await Promise.all([
+                chrome.storage.local.set({ [SETTINGS_KEY]: settings }),
+                chrome.storage.sync.set({ [SETTINGS_KEY]: settings }),
+            ]);
+        } catch {
+            await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
+        }
+    }
+
+    /**
+     * 清空所有数据
+     */
     static async clear(): Promise<void> {
-        const area = await this.getStorageArea();
-        await area.remove([STORAGE_KEY, INITIALIZED_KEY]);
-        await chrome.storage.local.remove([STORAGE_KEY, INITIALIZED_KEY, SETTINGS_KEY]);
-        await chrome.storage.sync.remove([STORAGE_KEY, INITIALIZED_KEY, SETTINGS_KEY]);
+        await Promise.all([
+            chrome.storage.local.remove([STORAGE_KEY, INITIALIZED_KEY, SETTINGS_KEY]),
+            chrome.storage.sync.remove([STORAGE_KEY, INITIALIZED_KEY, SETTINGS_KEY]),
+        ]);
+    }
+
+    /**
+     * 监听存储变化 - 当其他设备同步数据过来时触发
+     */
+    static onChanged(callback: (changes: { prompts?: Prompt[] }, area: string) => void): void {
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+            const promptChange = changes[STORAGE_KEY];
+            if (promptChange) {
+                callback(
+                    { prompts: promptChange.newValue as Prompt[] | undefined },
+                    areaName,
+                );
+            }
+        });
     }
 }

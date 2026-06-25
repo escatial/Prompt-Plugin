@@ -121,10 +121,10 @@ export const usePromptStore = create<PromptStore>((set, get) => {
         },
 
         setPrompts: (prompts) => {
-        searchIndex = buildSearchIndex(prompts);
-        set({ prompts });
-        ChromeStorage.savePrompts(prompts);
-    },
+            searchIndex = buildSearchIndex(prompts);
+            set({ prompts });
+            ChromeStorage.savePrompts(prompts);
+        },
 
         addPrompt: (promptData) => {
             const newPrompt: Prompt = {

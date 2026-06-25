@@ -1,4 +1,17 @@
 # prompt file
 prompt.md
-# prompt file
-prompt.md
+
+# build output
+dist/
+node_modules/
+
+# local zip packages
+Prompt-Sidebar-*.zip
+
+# editor
+.vscode/
+.idea/
+.DS_Store
+
+# logs
+*.log
