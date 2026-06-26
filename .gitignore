@@ -8,6 +8,11 @@ node_modules/
 # local zip packages
 Prompt-Sidebar-*.zip
 
+# temporary scripts
+create_release.ps1
+upload_asset.ps1
+release_payload.json
+
 # editor
 .vscode/
 .idea/
