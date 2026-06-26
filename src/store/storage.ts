@@ -11,10 +11,10 @@ const SYNC_MAX_TOTAL_SIZE = 90 * 1024; // 留 10KB 余量
 const SYNC_MAX_ITEMS = 480; // 留 32 条余量
 
 export const DEFAULT_HOTKEY: HotkeyConfig = {
-    key: 'Q',
+    key: 'P',
     altKey: true,
     ctrlKey: false,
-    shiftKey: false,
+    shiftKey: true,
     metaKey: false,
 };
 

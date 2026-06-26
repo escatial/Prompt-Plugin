@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Prompt Sidebar v0.1.9",
-  "version": "0.1.9",
+  "name": "Prompt Sidebar v0.2.0",
+  "version": "0.2.0",
   "description": "A prompt sidebar for Chrome",
   "permissions": ["sidePanel", "storage", "activeTab", "scripting"],
   "background": {
@@ -28,12 +28,12 @@
   "commands": {
     "_execute_action": {
       "suggested_key": {
-        "default": "Alt+Q"
+        "default": "Alt+Shift+P"
       }
     },
     "toggle-sidebar": {
       "suggested_key": {
-        "default": "Alt+Q"
+        "default": "Alt+Shift+P"
       },
       "description": "Toggle prompt sidebar"
     }
